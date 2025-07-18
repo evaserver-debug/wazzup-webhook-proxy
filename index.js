@@ -6,7 +6,7 @@ const app = express();
 const port = process.env.PORT || 3000; // Render надасть змінну PORT
 
 // URL вашого основного додатка, куди будуть пересилатися тільки повідомлення
-const MAIN_APP_WEBHOOK_URL = process.env.https://hook.eu2.make.com/jq47qrrjinc0lyi4k6fl2qji43n9w4bc || ;
+const MAIN_APP_WEBHOOK_URL = process.env.MAIN_APP_WEBHOOK_URL;
 
 // Використовуємо body-parser для читання JSON тіла запиту
 app.use(bodyParser.json());
