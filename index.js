@@ -3,11 +3,6 @@
 const express = require('express');
 const axios = require('axios');
 
-// Завантажуємо змінні з .env файлу тільки якщо ми НЕ на продакш-сервері
-if (process.env.NODE_ENV !== 'production') {
-  require('dotenv').config();
-}
-
 const app = express();
 app.use(express.json());
 
