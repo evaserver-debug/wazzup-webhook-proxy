@@ -1,71 +1,52 @@
+// index.js
+
+// Підключаємо необхідні бібліотеки
 const express = require('express');
-const axios = require('axios'); // Для виконання HTTP-запитів до основного додатка
-const bodyParser = require('body-parser');
+const axios = require('axios');
+require('dotenv').config(); // Для використання змінних оточення (наприклад, для локального тестування)
 
+// Створюємо Express-додаток
 const app = express();
-const port = process.env.PORT || 3000; // Render надасть змінну PORT
+// Додаємо middleware для парсингу JSON-тіла запитів
+app.use(express.json());
 
-// URL вашого основного додатка, куди будуть пересилатися тільки повідомлення
-const MAIN_APP_WEBHOOK_URL = process.env.MAIN_APP_WEBHOOK_URL;
+// Отримуємо URL вебхука Make.com зі змінних оточення
+// Це критично важливо для безпеки та гнучкості
+const MAKE_WEBHOOK_URL = process.env.MAKE_WEBHOOK_URL;
 
-// Використовуємо body-parser для читання JSON тіла запиту
-app.use(bodyParser.json());
+// Створюємо основний маршрут (endpoint), який буде слухати Wazzup
+// Наприклад, /api/webhook
+app.post('/webhook', async (req, res) => {
+  console.log('Отримано вебхук від Wazzup:', JSON.stringify(req.body, null, 2));
 
-// Головний ендпоінт для отримання вебхуків від Wazzup
-app.post('/wazzup-webhook', async (req, res) => {
-    const data = req.body;
-    console.log('Received webhook from Wazzup:', JSON.stringify(data, null, 2));
+  // --- ЛОГІКА ФІЛЬТРАЦІЇ ---
+  // Ми перевіряємо, чи існує в тілі запиту ключ "messages"
+  // і чи цей масив не є порожнім.
+  // Статуси приходять з ключем "statuses", тому вони не пройдуть цю перевірку.
+  if (req.body.messages && req.body.messages.length > 0) {
+    console.log('Це нове повідомлення. Пересилаємо в Make.com...');
 
     try {
-        // Wazzup надсилає масив "bundles" або "statuses"
-        // На основі вашого прикладу, він надсилає "statuses"
-        // Але якщо будуть також і "messages", потрібно перевірити наявність відповідних полів
-        // Wazzup API досить гнучке, тому перевіряємо, чи є ключ "statuses" або "messages"
-
-        let isStatusUpdate = false;
-        if (data.statuses && Array.isArray(data.statuses)) {
-            // Це пачка оновлень статусів
-            isStatusUpdate = true;
-            console.log('Detected status update, ignoring.');
-        } else if (data.messages && Array.isArray(data.messages)) {
-            // Це пачка нових повідомлень
-            // Wazzup може надсилати "messages" у вигляді масиву
-            // Або ж окреме поле "type": "message" як обговорювали раніше, залежить від конфігурації
-            const firstMessage = data.messages[0]; // Припустимо, що нас цікавить перший об'єкт у масиві
-            if (firstMessage && firstMessage.type === 'message') {
-                console.log('Detected new message, forwarding...');
-                await axios.post(MAIN_APP_WEBHOOK_URL, data); // Пересилаємо весь отриманий бандл
-                console.log('Message forwarded successfully.');
-            } else {
-                console.log('Detected other type of message/event, ignoring or forwarding if needed.');
-                // Ви можете додати логіку для інших типів повідомлень тут, якщо вони є і вас цікавлять
-            }
-        } else if (data.type === 'message') {
-            // Якщо Wazzup надсилає окремі події з полем "type"
-            console.log('Detected individual message, forwarding...');
-            await axios.post(MAIN_APP_WEBHOOK_URL, data);
-            console.log('Message forwarded successfully.');
-        } else if (data.type === 'status') {
-            console.log('Detected individual status update, ignoring.');
-            isStatusUpdate = true;
-        } else {
-            console.log('Unknown webhook type received, ignoring or handling as needed:', data);
-        }
-
-        // Завжди відповідаємо 200 OK, щоб Wazzup знав, що ми отримали запит
-        res.status(200).send('Webhook received and processed');
-
+      // Пересилаємо оригінальний запит на вебхук Make.com
+      await axios.post(MAKE_WEBHOOK_URL, req.body);
+      console.log('Успішно переслано в Make.com.');
     } catch (error) {
-        console.error('Error processing webhook or forwarding:', error.message);
-        // Важливо: Навіть при помилці, краще повернути 200 OK до Wazzup,
-        // інакше Wazzup може повторювати запити або деактивувати вебхук.
-        // Обробляйте помилки перенаправлення внутрішньо.
-        res.status(200).send('Webhook received but an internal error occurred');
+      console.error('Помилка при пересиланні в Make.com:', error.message);
+      // Тут можна додати логіку для сповіщення про помилки
     }
+  } else {
+    // Якщо це не нове повідомлення (наприклад, статус), просто ігноруємо його
+    console.log('Це статус або інша подія. Ігноруємо.');
+  }
+
+  // В будь-якому випадку відповідаємо Wazzup статусом 200 OK.
+  // Це означає, що ми успішно отримали їхній вебхук.
+  // Якщо цього не зробити, Wazzup буде вважати, що наш сервіс не працює.
+  res.sendStatus(200);
 });
 
-// Запускаємо сервер
-app.listen(port, () => {
-    console.log(`Proxy server listening on port ${port}`);
-    console.log(`Forwarding messages to: ${MAIN_APP_WEBHOOK_URL}`);
+// Запускаємо сервер на порту, який надає Render, або на 3000 для локального тестування
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Проксі-сервер запущено на порту ${PORT}`);
 });
