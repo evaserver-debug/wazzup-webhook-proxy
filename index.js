@@ -1,5 +1,3 @@
-// index.js
-
 const express = require('express');
 const axios = require('axios');
 
@@ -7,15 +5,21 @@ const app = express();
 app.use(express.json());
 
 const MAKE_WEBHOOK_URL = process.env.MAKE_WEBHOOK_URL;
+const BOT_CHANNEL_ID = '82a122a6-f059-424e-ba4a-6b218b0ff788'; // ID бота
 
 app.post('/webhook', async (req, res) => {
   console.log('Отримано вебхук від Wazzup:', JSON.stringify(req.body, null, 2));
 
+  // Перевіряємо channelId
+  const channelId = req.body.channelId;
+  if (channelId !== BOT_CHANNEL_ID) {
+    console.log(`🔕 Пропущено повідомлення з неботового каналу: ${channelId}`);
+    return res.sendStatus(200); // не обробляємо далі
+  }
+
   const messages = req.body.messages;
 
-  // Перевіряємо, чи є повідомлення та чи це НЕ echo
   if (messages && messages.length > 0) {
-    // Фільтруємо тільки ті повідомлення, які не є echo
     const userMessages = messages.filter(msg => msg.isEcho !== true);
 
     if (userMessages.length > 0) {
@@ -28,9 +32,9 @@ app.post('/webhook', async (req, res) => {
 
       try {
         await axios.post(MAKE_WEBHOOK_URL, { ...req.body, messages: userMessages });
-        console.log('Успішно переслано в Make.com.');
+        console.log('✅ Успішно переслано в Make.com.');
       } catch (error) {
-        console.error('Помилка при пересиланні в Make.com:', error.message);
+        console.error('❌ Помилка при пересиланні в Make.com:', error.message);
       }
     } else {
       console.log('Усі повідомлення — це echo. Ігноруємо.');
@@ -44,6 +48,6 @@ app.post('/webhook', async (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Проксі-сервер запущено на порту ${PORT}`);
+  console.log(`🚀 Проксі-сервер запущено на порту ${PORT}`);
   console.log(`Повідомлення пересилаються на: ${MAKE_WEBHOOK_URL ? MAKE_WEBHOOK_URL.substring(0, 30) + '...' : 'URL НЕ ВСТАНОВЛЕНО'}`);
 });
