@@ -10,17 +10,13 @@ const BOT_CHANNEL_ID = '82a122a6-f059-424e-ba4a-6b218b0ff788'; // ID бота
 app.post('/webhook', async (req, res) => {
   console.log('Отримано вебхук від Wazzup:', JSON.stringify(req.body, null, 2));
 
-  // Перевіряємо channelId
-  const channelId = req.body.channelId;
-  if (channelId !== BOT_CHANNEL_ID) {
-    console.log(`🔕 Пропущено повідомлення з неботового каналу: ${channelId}`);
-    return res.sendStatus(200); // не обробляємо далі
-  }
-
   const messages = req.body.messages;
 
   if (messages && messages.length > 0) {
-    const userMessages = messages.filter(msg => msg.isEcho !== true);
+    // 🔍 Відфільтровуємо повідомлення тільки з потрібного каналу і які не є echo
+    const userMessages = messages.filter(
+      msg => msg.channelId === BOT_CHANNEL_ID && msg.isEcho !== true
+    );
 
     if (userMessages.length > 0) {
       console.log('Це нове повідомлення від користувача. Пересилаємо в Make.com...');
@@ -37,7 +33,7 @@ app.post('/webhook', async (req, res) => {
         console.error('❌ Помилка при пересиланні в Make.com:', error.message);
       }
     } else {
-      console.log('Усі повідомлення — це echo. Ігноруємо.');
+      console.log('🔕 Повідомлення або echo, або з іншого каналу. Ігноруємо.');
     }
   } else {
     console.log('Це статус або інша подія. Ігноруємо.');
