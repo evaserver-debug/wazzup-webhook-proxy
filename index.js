@@ -7,6 +7,7 @@ app.use(express.json());
 const MAKE_WEBHOOK_URL = process.env.MAKE_WEBHOOK_URL;
 const BOT_CHANNEL_ID = '82a122a6-f059-424e-ba4a-6b218b0ff788'; // ID бота
 
+// 🔹 Основний маршрут для Wazzup вебхуків
 app.post('/webhook', async (req, res) => {
   console.log('Отримано вебхук від Wazzup:', JSON.stringify(req.body, null, 2));
 
@@ -42,8 +43,22 @@ app.post('/webhook', async (req, res) => {
   res.sendStatus(200);
 });
 
+// 🔹 Сервісний маршрут для пінгу
+app.get('/ping', (req, res) => {
+  res.status(200).send('pong');
+});
+
 const PORT = process.env.PORT || 3000;
+const SERVER_URL = process.env.SERVER_URL || `http://localhost:${PORT}`;
+
 app.listen(PORT, () => {
   console.log(`🚀 Проксі-сервер запущено на порту ${PORT}`);
   console.log(`Повідомлення пересилаються на: ${MAKE_WEBHOOK_URL ? MAKE_WEBHOOK_URL.substring(0, 30) + '...' : 'URL НЕ ВСТАНОВЛЕНО'}`);
 });
+
+// 🔹 Автопінг кожні 4 хвилини (щоб Render не засинав)
+setInterval(() => {
+  axios.get(`${SERVER_URL}/ping`)
+    .then(() => console.log('🔄 Self-ping OK'))
+    .catch(err => console.error('❌ Self-ping error:', err.message));
+}, 1000 * 60 * 4);
